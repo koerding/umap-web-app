@@ -62,7 +62,7 @@
         function generateDataset(type) {
             switch (type) {
                 case 'line':
-                    return Array.from({length: 1000}, (_, i) => [i / 1000, 0.001 * Math.random()]); // Tiny random Y to make it visible
+                    return Array.from({length: 1000}, (_, i) => [i / 1000, 0.5]);
                 case '2d':
                     return Array.from({length: 1000}, () => [Math.random(), Math.random()]);
                 default:
