@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMAP Web App</title>
+    <!-- Correct UMAP-JS CDN from unpkg -->
+    <script src="https://unpkg.com/umap-js@1.3.3/lib/umap-js.min.js"></script>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        #container {
+            display: flex;
+            justify-content: space-around;
+        }
+    </style>
+</head>
+<body>
+    <h1>UMAP Dimensionality Reduction</h1>
+
+    <label for="nNeighbors">Number of Neighbors (up to 500):</label>
+    <input type="range" id="nNeighbors" min="2" max="500" value="15" step="1" oninput="updateSliderValue('nNeighbors', this.value)">
+    <span id="nNeighborsValue">15</span>
+
+    <br><br>
+
+    <label for="minDist">Minimum Distance:</label>
+    <input type="range" id="minDist" min="0" max="1" value="0.1" step="0.01" oninput="updateSliderValue('minDist', this.value)">
+    <span id="minDistValue">0.1</span>
+
+    <br><br>
+
+    <label for="dataset">Choose Dataset:</label>
+    <select id="dataset">
+        <option value="line">1D Line</option>
+        <option value="2d">2D Points</option>
+    </select>
+
+    <br><br>
+
+    <button onclick="runUMAP()">Recompute UMAP</button>
+
+    <h2>Raw Data (left) and UMAP Results (right)</h2>
+
+    <div id="container">
+        <canvas id="rawDataCanvas" width="400" height="400"></canvas>
+        <canvas id="umapCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <script>
+        const rawCanvas = document.getElementById('rawDataCanvas');
+        const rawCtx = rawCanvas.getContext('2d');
+        const umapCanvas = document.getElementById('umapCanvas');
+        const umapCtx = umapCanvas.getContext('2d');
+
+        function updateSliderValue(sliderId, value) {
+            document.getElementById(sliderId + 'Value').textContent = value;
+        }
+
+        // Generate 1000 points for each dataset type
+        function generateDataset(type) {
+            switch (type) {
+                case 'line':
+                    return Array.from({length: 1000}, (_, i) => [i / 1000, 0.001 * Math.random()]); // Tiny random Y to make it visible
+                case '2d':
+                    return Array.from({length: 1000}, () => [Math.random(), Math.random()]);
+                default:
+                    return [];
+            }
+        }
+
+        // Normalize and scale points to fit the canvas
+        function normalize(embedding, canvasSize) {
+            const minX = Math.min(...embedding.map(p => p[0]));
+            const maxX = Math.max(...embedding.map(p => p[0]));
+            const minY = Math.min(...embedding.map(p => p[1]));
+            const maxY = Math.max(...embedding.map(p => p[1]));
+
+            const scaleX = maxX - minX === 0 ? 1 : maxX - minX;
+            const scaleY = maxY - minY === 0 ? 1 : maxY - minY;
+
+            return embedding.map(([x, y]) => [
+                ((x - minX) / scaleX) * canvasSize,
+                ((y - minY) / scaleY) * canvasSize
+            ]);
+        }
+
+        function plotPoints(ctx, points, canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point[0], point[1], 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        async function runUMAP() {
+            const nNeighbors = parseInt(document.getElementById('nNeighbors').value);
+            const minDist = parseFloat(document.getElementById('minDist').value);
+            const datasetType = document.getElementById('dataset').value;
+
+            const data = generateDataset(datasetType);
+
+            // Plot raw data
+            const normalizedRawData = normalize(data, rawCanvas.width);
+            plotPoints(rawCtx, normalizedRawData, rawCanvas);
+
+            // Run UMAP
+            const umap = new UMAP({
+                nNeighbors: nNeighbors,
+                minDist: minDist
+            });
+
+            const embedding = await umap.fitAsync(data);
+
+            // Plot UMAP result
+            const normalizedEmbedding = normalize(embedding, umapCanvas.width);
+            plotPoints(umapCtx, normalizedEmbedding, umapCanvas);
+        }
+
+        window.onload = function() {
+            runUMAP(); // Initial run
+        }
+    </script>
+</body>
+</html>
+
